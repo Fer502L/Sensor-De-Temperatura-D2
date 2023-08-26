@@ -1,0 +1,162 @@
+#include <Arduino.h>
+#include "driver/ledc.h"
+
+#define CanalUsadoParaElServomotor 0 // 16 canales 0-15
+#define CanalUsadoParaElLedRojo 1
+#define CanalUsadoParaElLedVerde 2
+#define CanalUsadoParaElLedAzul 3
+
+#define FrecuenciaDeLosLeds 1000 // Frecuencia en Hz
+#define FrecuenciaDelServo 50 // Frecuencia en Hz
+
+#define ResolucionDeLosLeds 8 // 1-16 bits de resolución
+#define ResolucionDelServo 8 // 1-16 bits de resolución
+
+#define PinUsadoParaElLedRojo 19
+#define PinUsadoParaElLedVerde 18
+#define PinUsadoParaElLedAzul 5
+#define PinUsadoParaElServo 23
+
+#define BotonParaIncrementarElBrilloDeLosLeds 34 //Boton Incremento brillo de Led
+#define BotonParaCambiarElModo 35 //Boton Cambio de Modo
+#define BotonParaIncrementarElMovimientoDelServo 32 //Boton Incremento Servo
+#define BotonParaDecrementarElMovimientoDelServo 33 //Boton Decremento Servo
+
+void configurarPWM(void);
+
+int EstadoDeCambio;
+int EstadoDeIncrementoDeLosLeds;
+int EstadoDeIncrementoDelServo;
+int EstadoDeDecrementoDelServo;
+int DutyCycleLedRojo;
+int DutyCycleLedVerde;
+int DutyCycleLedAzul;
+int DutyCycleServo;
+int EstadoAnteriorAlDeCambio = 0;
+int LedRGB = 0;
+int ModoRGBS = 0;
+
+void setup(){
+  pinMode(BotonParaIncrementarElBrilloDeLosLeds, INPUT);
+  pinMode(BotonParaCambiarElModo, INPUT);
+  pinMode(BotonParaIncrementarElMovimientoDelServo, INPUT);
+  pinMode(BotonParaDecrementarElMovimientoDelServo, INPUT);
+  configurarPWM(); //Configuracion PWM
+  DutyCycleLedRojo = 0;
+  DutyCycleLedVerde = 0;
+  DutyCycleLedAzul = 0;
+  DutyCycleServo = 5;
+  ledcWrite(CanalUsadoParaElServomotor, DutyCycleServo);
+  Serial.begin(115200);
+}
+
+void loop(){
+  EstadoDeIncrementoDeLosLeds = digitalRead(BotonParaIncrementarElBrilloDeLosLeds);
+  EstadoDeCambio = digitalRead(BotonParaCambiarElModo);
+  EstadoDeIncrementoDelServo = digitalRead(BotonParaIncrementarElMovimientoDelServo);
+  EstadoDeDecrementoDelServo = digitalRead(BotonParaDecrementarElMovimientoDelServo);
+  delay(100);
+
+  if (EstadoDeCambio == 1 && EstadoAnteriorAlDeCambio == 0) {
+    ModoRGBS++;
+    if (ModoRGBS > 3) {
+      ModoRGBS = 0; // Limitamos el valor máximo a 3 
+    }
+  }
+  EstadoAnteriorAlDeCambio = EstadoDeCambio;
+  
+  if(ModoRGBS == 0){ //Led Rojo
+    ledcWrite(CanalUsadoParaElLedRojo, DutyCycleLedRojo);
+    ledcWrite(CanalUsadoParaElLedVerde, DutyCycleLedVerde);
+    ledcWrite(CanalUsadoParaElLedAzul, DutyCycleLedAzul);
+    if(EstadoDeIncrementoDeLosLeds == 1){
+      DutyCycleLedRojo ++; // Incrementar el dutycycle 
+      if(DutyCycleLedRojo > 60){
+        DutyCycleLedRojo = 0;
+      }
+      ledcWrite(CanalUsadoParaElLedRojo, DutyCycleLedRojo);
+      Serial.println(DutyCycleLedRojo);
+      delay(10);
+    }
+  }
+
+  if(ModoRGBS == 1){ //Led Verde
+    if(EstadoDeIncrementoDeLosLeds == 1){
+      DutyCycleLedVerde ++; // Incrementar el dutycycle 
+      if(DutyCycleLedVerde > 60){
+        DutyCycleLedVerde = 0;
+      }
+      ledcWrite(CanalUsadoParaElLedVerde, DutyCycleLedVerde);
+      Serial.println(DutyCycleLedVerde);
+      delay(10);
+    }
+  }
+
+  if(ModoRGBS == 2){ //Led Azul
+    if(EstadoDeIncrementoDeLosLeds == 1){
+      DutyCycleLedAzul ++; // Incrementar el dutycycle 
+      if(DutyCycleLedAzul > 60){
+        DutyCycleLedAzul = 0;
+      }
+      ledcWrite(CanalUsadoParaElLedAzul, DutyCycleLedAzul);
+      Serial.println(DutyCycleLedAzul);
+      delay(10);
+    }
+  }
+
+  if(ModoRGBS == 3){ //Servo 
+    if(EstadoDeIncrementoDelServo == 1){
+      DutyCycleServo ++; // Incrementar el dutycycle 
+      if(DutyCycleServo > 33){
+        DutyCycleServo = 33;
+      }
+      ledcWrite(CanalUsadoParaElServomotor, DutyCycleServo);
+      Serial.println(DutyCycleServo);
+      delay(10);
+    }
+
+    if(EstadoDeDecrementoDelServo == 1){
+      DutyCycleServo --; // Decrementar el dutycycle 
+      if(DutyCycleServo < 6){
+        DutyCycleServo = 6;
+      }
+      ledcWrite(CanalUsadoParaElServomotor, DutyCycleServo);
+      Serial.println(DutyCycleServo);
+      delay(10);
+    }
+    //Funcionamiento de los Leds con el Servo
+    if (5 < DutyCycleServo && DutyCycleServo < 15){
+    ledcWrite(CanalUsadoParaElLedRojo, map(DutyCycleServo, 6, 14, 0, 60));
+    ledcWrite(CanalUsadoParaElLedVerde, 0);
+    ledcWrite(CanalUsadoParaElLedAzul, 0);
+    } 
+
+    if (15 < DutyCycleServo && DutyCycleServo < 24){
+        ledcWrite(CanalUsadoParaElLedRojo, 0);
+        ledcWrite(CanalUsadoParaElLedVerde, map(DutyCycleServo, 15, 23, 0, 60));
+        ledcWrite(CanalUsadoParaElLedAzul, 0);
+    }
+
+    if (25 < DutyCycleServo && DutyCycleServo < 34){
+        ledcWrite(CanalUsadoParaElLedRojo, 0);
+        ledcWrite(CanalUsadoParaElLedVerde, 0);
+        ledcWrite(CanalUsadoParaElLedAzul, map(DutyCycleServo, 24, 33, 0, 60));
+    }
+  }  
+}
+//****************************************************************
+// Función para configurar módulo PWM
+//****************************************************************
+void configurarPWM(void){
+// Paso 1: Configurar el módulo PWM
+ledcSetup(CanalUsadoParaElLedRojo, FrecuenciaDeLosLeds, ResolucionDeLosLeds);
+ledcSetup(CanalUsadoParaElLedVerde, FrecuenciaDeLosLeds, ResolucionDeLosLeds);
+ledcSetup(CanalUsadoParaElLedAzul, FrecuenciaDeLosLeds, ResolucionDeLosLeds);
+ledcSetup(CanalUsadoParaElServomotor, FrecuenciaDelServo, ResolucionDelServo);
+
+// Paso 2: seleccionar en que GPIO tendremos nuestra señal PWM
+ledcAttachPin(PinUsadoParaElLedRojo, CanalUsadoParaElLedRojo);
+ledcAttachPin(PinUsadoParaElLedVerde, CanalUsadoParaElLedVerde);
+ledcAttachPin(PinUsadoParaElLedAzul, CanalUsadoParaElLedAzul);
+ledcAttachPin(PinUsadoParaElServo, CanalUsadoParaElServomotor);
+}
